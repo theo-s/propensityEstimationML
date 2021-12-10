@@ -6,14 +6,14 @@ for observational data estimated by machine learning algorithms.
 # Simulations
 
 In order to run the standard estimation simulations, run the script:
-``
+```
 Rscript code/sims.R
-``
+```
 The figures will then be saved in the `figures` folder.
 In order to run the high dimensional simulations, run the script:
-``
+```
 Rscript code/high_dim_sims.R
-``
+```
 
 # Data Analysis
 
