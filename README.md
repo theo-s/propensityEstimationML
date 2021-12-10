@@ -24,3 +24,8 @@ pip install folktables
 ``
 The script `code/pull_data.py` then pulls the appropriate data and stores it in the 
 `data` folder.
+For instance:
+```
+pip3 install folktables
+python3 code/pull_data.py
+```
