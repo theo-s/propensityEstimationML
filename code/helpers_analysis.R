@@ -1,3 +1,38 @@
+# STacked RF implementation that saves the regressions
+stacked_rf <- function(
+  X_train,
+  Tr_train,
+  X_test
+) {
+  library(Rforestry)
+
+  fit1 <- forestry(x = X_train,
+                  y = Tr_train,
+                  saveable = TRUE,
+                  OOBhonest= TRUE)
+
+  preds <- predict(fit1,
+                   newdata = X_train,
+                   aggregation = "oob")
+
+  # Get the indices and weights for each observation
+  fit2 <- glm(Tr_train ~.,
+             data = data.frame(X_train = preds,
+                               Tr_train = Tr_train),
+             family = "binomial")
+
+  # Predict out of sample
+  preds_test <- predict(fit1,
+                        newdata = X_test
+                        )
+
+  ps_estimate <- unname(predict(fit2,
+                                newdata = data.frame(X_train = preds_test),
+                                type = "response"))
+
+
+  return(ps_estimate)
+}
 
 # Helper function to tune XGboost
 xgb_helper <- function(Xobs,
@@ -57,7 +92,7 @@ xgb_helper <- function(Xobs,
 }
 
 
-xgb_predict <- function(estimator, feat) {
+xgb_predict <- function(estimator, newdata) {
   fit <- estimator[[1]]
-  return(predict(fit$finalModel, newdata = as.matrix(feat)))
+  return(predict(fit$finalModel, newdata = as.matrix(newdata)))
 }

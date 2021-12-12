@@ -5,6 +5,7 @@ library(ggplot2)
 library(dplyr)
 library(reshape)
 
+source("~/Desktop/propensityEstimationML/code/helpers_analysis.R")
 
 # Logistic regression ----------------------------------------------------------
 lr <- function(
@@ -60,6 +61,17 @@ bt <- function(
   return(apply(ps_estimate, 2, mean))
 }
 
+xgb <- function(
+  X_train,
+  Tr_train
+) {
+  # Fit the model
+  fit <- xgb_helper(Xobs = X_train,
+                    Yobs = Tr_train)
+
+  preds <- xgb_predict(estimator = fit, feat = X_train)
+  return(preds)
+}
 
 stacked_rf <- function(
   X_train,

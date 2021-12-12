@@ -4,6 +4,7 @@ library(ggplot2)
 library(dplyr)
 library(reshape)
 
+source("code/helpers_analysis.R")
 
 # Evaluate P score functions ---------------------------------------------------
 smooth_ps <- function(x) {
@@ -21,7 +22,7 @@ linear_ps <- function(x) {
 
 nonlinear_ps <- function(x) {
   # For now we keep the number of bins to be 100 X N depending on whatever N is
-  n_bins <- 100*n#round(100*length(x))
+  n_bins <- round(100*length(x))
   bin_width <- 1/n_bins
   probs <- ifelse(x %% bin_width < (bin_width/2),
                   .9,
@@ -119,6 +120,7 @@ stacked_rf <- function(
 
   fit <- forestry(x = data.frame(X_train),
                   y = Tr_train,
+                  saveable = TRUE,
                   OOBhonest= TRUE)
   preds <- predict(fit,
                    newdata = data.frame(X_train),
@@ -136,6 +138,18 @@ stacked_rf <- function(
 
 
   return(ps_estimate)
+}
+
+xgb <- function(
+  X_train,
+  Tr_train
+) {
+  # Fit the model
+  fit <- xgb_helper(Xobs = X_train,
+                    Yobs = Tr_train)
+
+  preds <- xgb_predict(estimator = fit, feat = X_train)
+  return(preds)
 }
 
 # Estimate the treatment effect with the given method and model
@@ -164,6 +178,8 @@ est_te <- function(
 }
 
 
+
+
 # Plotting function ------------------------------------------------------------
 plot_preds <- function(
   ps_func,
@@ -178,6 +194,7 @@ plot_preds <- function(
   est_lr <- lr(X, Tr)
   est_bt <- bt(X, Tr)
   est_cr <- stacked_rf(X, Tr)
+  est_xgb <- xgb(data.frame(V1 = X),Tr)
 
 
   summary(est_rf)
@@ -192,6 +209,7 @@ plot_preds <- function(
              RandomForest = quantile(est_rf, probs = p),
              LogisticRegression = quantile(est_lr, probs = p),
              CorrectedRF = quantile(est_cr, probs = p),
+             XGboost = quantile(est_xgb, probs = p),
              TruePropensityScore = quantile(p_scores, probs = p),
              prob = p) %>%
     melt("prob") %>%
