@@ -64,6 +64,8 @@ x_complete <- data_complete %>%
 y_complete <- data_complete$PINCP
 Tr_complete <- data_complete$HED
 
+ate_complete <- mean(y_complete[Tr_complete==1]) - mean(y_complete[Tr_complete==0])
+
 drx <- DR_Learner_XGB(feature_train = x_complete,
                       w_train = Tr_complete,
                       yobs_train = y_complete)
@@ -89,8 +91,23 @@ tl <- T_RF(feat = x_complete,
 pred_tl <- EstimateCate(tl, feature_new = x_complete)
 print(paste0("ATE (T Learner): ",mean(pred_tl)))
 
-results <- data.frame(Estimator = c("DR Learner (RF)","DR Learner (XGboost)","T Learner (RF)","Difference In Means"),
-                      ATE = c(mean(pred_dr),mean(pred_xgb), mean(pred_tl),ate_naive))
+
+# Train DR RF on whole data set
+dr_c <- DR_Learner_RF(feature_train = x_complete,
+                    w_train = Tr_complete,
+                    corrected = TRUE,
+                    yobs_train = y_complete)
+
+
+pred_drc <- rf_DR_pred(dr_c,
+                      newdata = x_complete)
+print(paste0("ATE (DR Learner RF complete): ",mean(pred_drc)))
+
+
+results <- data.frame(Estimator = c("DR Learner (RF)","DR Learner (RF complete)",
+                                    "DR Learner (XGboost)","T Learner (RF)",
+                                    "Difference In Means", "Difference In Means (complete)"),
+                      ATE = c(mean(pred_dr),mean(pred_drc), mean(pred_xgb), mean(pred_tl),ate_naive,ate_complete))
 
 write.csv(x = results, "~/Desktop/propensityEstimationML/data/results.csv")
 xtable(results, caption = "Average treatment effect of education on earnings based on different estimators.")
