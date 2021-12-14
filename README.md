@@ -29,3 +29,14 @@ For instance:
 pip3 install folktables
 python3 code/pull_data.py
 ```
+
+In order to produce all the tables and plots in both the exploratory data analysis
+in Section 5, one should run the script:
+```
+Rscript code/summarise_data.R
+```
+In order to create the CATE + ATE estimates and create the CATE plots from Appendix A, 
+one should run:
+```
+Rscript code/analysis.R
+```

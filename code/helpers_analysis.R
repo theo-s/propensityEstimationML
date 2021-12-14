@@ -7,9 +7,10 @@ stacked_rf <- function(
   library(Rforestry)
 
   fit1 <- forestry(x = X_train,
-                  y = Tr_train,
-                  saveable = TRUE,
-                  OOBhonest= TRUE)
+                   y = Tr_train,
+                   saveable = TRUE,
+                   nodesizeStrictSpl = round(.05*nrow(X_train)),
+                   OOBhonest= TRUE)
 
   preds <- predict(fit1,
                    newdata = X_train,
@@ -95,4 +96,31 @@ xgb_helper <- function(Xobs,
 xgb_predict <- function(estimator, newdata) {
   fit <- estimator[[1]]
   return(predict(fit$finalModel, newdata = as.matrix(newdata)))
+}
+
+stacked_xgb <- function(
+  X_train,
+  Tr_train,
+  X_test
+) {
+  # Fit the model
+  fit1 <- xgb_helper(Xobs = X_train,
+                    Yobs = Tr_train)
+
+  preds <- xgb_predict(estimator = fit1, feat = X_train)
+
+  # Get the indices and weights for each observation
+  fit2 <- glm(Tr_train ~.,
+              data = data.frame(X_train = preds,
+                                Tr_train = Tr_train),
+              family = "binomial")
+
+  # Predict out of sample
+  preds_test <- xgb_predict(fit1, feat = X_test)
+
+  ps_estimate <- unname(predict(fit2,
+                                newdata = data.frame(X_train = preds_test),
+                                type = "response"))
+
+  return(ps_estimate)
 }

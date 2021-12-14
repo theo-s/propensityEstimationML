@@ -50,8 +50,8 @@ df = df[df['PINCP'].notnull()]
 df = df[df['AGEP'] > 18]
 
 df['HED'] = (df['SCHL'] >= 21).astype(int) # Higher ed: Associate degree and above
-inc_cutoff = 200000 # The upper tail of incomes would distort our analysis
-df['PINCP'] = df['PINCP'].apply(lambda x: x if x <= inc_cutoff else inc_cutoff)
+#inc_cutoff = 750000 # The upper tail of incomes would distort our analysis
+#df['PINCP'] = df['PINCP'].apply(lambda x: x if x <= inc_cutoff else inc_cutoff)
 print(df.isnull().sum())
 print(df.shape)
 

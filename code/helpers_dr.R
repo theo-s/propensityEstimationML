@@ -35,7 +35,8 @@ xgb_DR_pred <- function(estimator_list, newdata) {
 DR_Learner_XGB <- function(feature_train,
                            w_train,
                            yobs_train,
-                           trunc_level = .02) {
+                           corrected=FALSE,
+                           trunc_level = .05) {
   library(dplyr)
   library(caret)
 
@@ -47,10 +48,26 @@ DR_Learner_XGB <- function(feature_train,
   # Nuisance training
   # Propensity Score regression using fold 1
   print("Fitting Propensity Score Regression")
-  propensity_reg <- xgb_helper(Xobs = feature_train[initial_split$Fold1,],
-                               Yobs = w_train[initial_split$Fold1]
-                               )
+  # Phase 3 Pseudo outcome regression
+  pseudo_reg_data <- feature_train[initial_split$Fold3,]
+  pseudo_out <- yobs_train[initial_split$Fold3]
+  pseudo_ind <- w_train[initial_split$Fold3]
 
+
+  if (corrected) {
+    reg_p_score <- stacked_xgb(feature_train[initial_split$Fold1,],
+                               w_train[initial_split$Fold1],
+                               pseudo_reg_data
+                               )
+  } else {
+    propensity_reg <- xgb_helper(Xobs = feature_train[initial_split$Fold1,],
+                                 Yobs = w_train[initial_split$Fold1]
+    )
+    # trunc_level <- .02
+    reg_p_score <- xgb_predict(propensity_reg, newdata = pseudo_reg_data)
+  }
+
+  print(summary(reg_p_score))
   # Outcome Regression using fold 2
   outcome_reg_data <- feature_train[initial_split$Fold2,]
   outcome_reg_outcome <- yobs_train[initial_split$Fold2]
@@ -68,13 +85,6 @@ DR_Learner_XGB <- function(feature_train,
                           Yobs = outcome_reg_outcome[contr_idx]
                           )
 
-  # Phase 3 Pseudo outcome regression
-  pseudo_reg_data <- feature_train[initial_split$Fold3,]
-  pseudo_out <- yobs_train[initial_split$Fold3]
-  pseudo_ind <- w_train[initial_split$Fold3]
-
-  # trunc_level <- .02
-  reg_p_score <- xgb_predict(propensity_reg, newdata = pseudo_reg_data)
 
   # Make sure we truncate the estimated propensity score for stability
   data.frame(X1 = reg_p_score) %>% dplyr::mutate(X1 = case_when(X1 < trunc_level ~ trunc_level,
@@ -210,7 +220,7 @@ DR_Learner_RF <- function(feature_train,
                           w_train,
                           yobs_train,
                           corrected = FALSE,
-                          trunc_level = .02) {
+                          trunc_level = .05) {
   library(Rforestry)
   library(dplyr)
   library(caret)
@@ -236,14 +246,14 @@ DR_Learner_RF <- function(feature_train,
   } else {
     propensity_reg <- forestry(x = feature_train[initial_split$Fold1,],
                                y = w_train[initial_split$Fold1],
-                               nthread = 1,
+                               nthread = 0,
                                saveable = TRUE,
                                mtry = max(floor(ncol(feature_train[initial_split$Fold1,]) / 3), 2),
-                               nodesizeStrictSpl = 5)
+                               nodesizeStrictSpl = 20)
     reg_p_score <- predict(object = propensity_reg, newdata = pseudo_reg_data)
   }
 
-
+  print(summary(reg_p_score))
 
 
   # Outcome Regression using fold 2
@@ -256,18 +266,18 @@ DR_Learner_RF <- function(feature_train,
   print("Fitting Treatment Outcome Regression")
   treat_reg <- forestry(x = outcome_reg_data[treat_idx,],
                         y = outcome_reg_outcome[treat_idx],
-                        nthread = 1,
+                        nthread = 0,
                         saveable = TRUE,
                         mtry = max(floor(ncol(outcome_reg_data[treat_idx,]) / 3), 2),
-                        nodesizeStrictSpl = 5)
+                        nodesizeStrictSpl = 20)
 
   print("Fitting Control Outcome Regression")
   contr_reg <- forestry(x = outcome_reg_data[contr_idx,],
                         y = outcome_reg_outcome[contr_idx],
-                        nthread = 1,
+                        nthread = 0,
                         saveable = TRUE,
                         mtry = max(floor(ncol(outcome_reg_data[contr_idx,]) / 3), 2),
-                        nodesizeStrictSpl = 5)
+                        nodesizeStrictSpl = 20)
 
 
 
@@ -291,20 +301,20 @@ DR_Learner_RF <- function(feature_train,
   pseudo_outcome <- ((pseudo_ind - trunc_p) / (trunc_p*(1-trunc_p)))*(pseudo_out - tailored_pred) + t_pred - c_pred
   pseudo_outcome_reg_1 <- forestry(x = pseudo_reg_data,
                                    y = pseudo_outcome,
-                                   nthread = 1,
+                                   nthread = 0,
                                    saveable = TRUE,
                                    mtry = max(floor(ncol(pseudo_reg_data) / 3), 2),
-                                   nodesizeStrictSpl = 5)
+                                   nodesizeStrictSpl = 20)
 
   # Second fold =================================================================
   # Propensity Score regression using fold 1
   print("Fitting Propensity Score Regression")
   propensity_reg <- forestry(x = feature_train[initial_split$Fold3,],
                              y = w_train[initial_split$Fold3],
-                             nthread = 1,
+                             nthread = 0,
                              saveable = TRUE,
                              mtry = max(floor(ncol(feature_train[initial_split$Fold1,]) / 3), 2),
-                             nodesizeStrictSpl = 5)
+                             nodesizeStrictSpl = 20)
 
   # Outcome Regression using fold 2
   outcome_reg_data <- feature_train[initial_split$Fold1,]
@@ -316,18 +326,18 @@ DR_Learner_RF <- function(feature_train,
   print("Fitting Treatment Outcome Regression")
   treat_reg <- forestry(x = outcome_reg_data[treat_idx,],
                         y = outcome_reg_outcome[treat_idx],
-                        nthread = 1,
+                        nthread = 0,
                         saveable = TRUE,
                         mtry = max(floor(ncol(outcome_reg_data[treat_idx,]) / 3), 2),
-                        nodesizeStrictSpl = 5)
+                        nodesizeStrictSpl = 20)
 
   print("Fitting Control Outcome Regression")
   contr_reg <- forestry(x = outcome_reg_data[contr_idx,],
                         y = outcome_reg_outcome[contr_idx],
-                        nthread = 1,
+                        nthread = 0,
                         saveable = TRUE,
                         mtry = max(floor(ncol(outcome_reg_data[contr_idx,]) / 3), 2),
-                        nodesizeStrictSpl = 5)
+                        nodesizeStrictSpl = 20)
 
   # Phase 3 Pseudo outcome regression
   pseudo_reg_data <- feature_train[initial_split$Fold2,]
@@ -355,20 +365,20 @@ DR_Learner_RF <- function(feature_train,
   pseudo_outcome <- ((pseudo_ind - trunc_p) / (trunc_p*(1-trunc_p)))*(pseudo_out - tailored_pred) + t_pred - c_pred
   pseudo_outcome_reg_2 <- forestry(x = pseudo_reg_data,
                                    y = pseudo_outcome,
-                                   nthread = 1,
+                                   nthread = 0,
                                    saveable = TRUE,
                                    mtry = max(floor(ncol(pseudo_reg_data) / 3), 2),
-                                   nodesizeStrictSpl = 5)
+                                   nodesizeStrictSpl = 20)
 
   # Third fold =================================================================
   # Propensity Score regression using fold 1
   print("Fitting Propensity Score Regression")
   propensity_reg <- forestry(x = feature_train[initial_split$Fold2,],
                              y = w_train[initial_split$Fold2],
-                             nthread = 1,
+                             nthread = 0,
                              saveable = TRUE,
                              mtry = max(floor(ncol(feature_train[initial_split$Fold1,]) / 3), 2),
-                             nodesizeStrictSpl = 5)
+                             nodesizeStrictSpl = 20)
 
   # Outcome Regression using fold 2
   outcome_reg_data <- feature_train[initial_split$Fold3,]
@@ -380,18 +390,18 @@ DR_Learner_RF <- function(feature_train,
   print("Fitting Treatment Outcome Regression")
   treat_reg <- forestry(x = outcome_reg_data[treat_idx,],
                         y = outcome_reg_outcome[treat_idx],
-                        nthread = 1,
+                        nthread = 0,
                         saveable = TRUE,
                         mtry = max(floor(ncol(outcome_reg_data[treat_idx,]) / 3), 2),
-                        nodesizeStrictSpl = 5)
+                        nodesizeStrictSpl = 20)
 
   print("Fitting Control Outcome Regression")
   contr_reg <- forestry(x = outcome_reg_data[contr_idx,],
                         y = outcome_reg_outcome[contr_idx],
-                        nthread = 1,
+                        nthread = 0,
                         saveable = TRUE,
                         mtry = max(floor(ncol(outcome_reg_data[contr_idx,]) / 3), 2),
-                        nodesizeStrictSpl = 5)
+                        nodesizeStrictSpl = 20)
 
   # Phase 3 Pseudo outcome regression
   pseudo_reg_data <- feature_train[initial_split$Fold1,]
@@ -419,10 +429,10 @@ DR_Learner_RF <- function(feature_train,
   pseudo_outcome <- ((pseudo_ind - trunc_p) / (trunc_p*(1-trunc_p)))*(pseudo_out - tailored_pred) + t_pred - c_pred
   pseudo_outcome_reg_3 <- forestry(x = pseudo_reg_data,
                                    y = pseudo_outcome,
-                                   nthread = 1,
+                                   nthread = 0,
                                    saveable = TRUE,
                                    mtry = max(floor(ncol(pseudo_reg_data) / 3), 2),
-                                   nodesizeStrictSpl = 5)
+                                   nodesizeStrictSpl = 20)
 
   return(list(pseudo_outcome_reg_1,pseudo_outcome_reg_2,pseudo_outcome_reg_3))
 }
