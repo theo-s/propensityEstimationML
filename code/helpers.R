@@ -146,9 +146,10 @@ xgb <- function(
 ) {
   # Fit the model
   fit <- xgb_helper(Xobs = X_train,
-                    Yobs = Tr_train)
+                    Yobs = Tr_train,
+                    tune_length = 10)
 
-  preds <- xgb_predict(estimator = fit, feat = X_train)
+  preds <- xgb_predict(estimator = fit, newdata = X_train)
   return(preds)
 }
 
