@@ -2,6 +2,13 @@
 
 This repository contains several methods to correct predicted propensity scores 
 for observational data estimated by machine learning algorithms.
+In order to run the T-Learner in the data analysis code, you must install the `causalToolbox`
+R package.
+This can be installed using:
+```
+if (!require("devtools")) install.packages("devtools")
+  devtools::install_github("forestry-labs/causalToolbox")
+```
 
 # Simulations
 
@@ -40,3 +47,4 @@ one should run:
 ```
 Rscript code/analysis.R
 ```
+All figures will be found in the `figures` folder.
